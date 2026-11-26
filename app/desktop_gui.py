@@ -8,9 +8,15 @@ from datetime import datetime
 import queue
 import threading
 from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
 import webbrowser
+
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, simpledialog, ttk
+except (ImportError, OSError):
+    from environment_check import report_tk_startup_error
+    report_tk_startup_error()
+    raise SystemExit(1)
 
 from desktop_backend import DesktopBackendError
 from desktop_client import DesktopBackendClient

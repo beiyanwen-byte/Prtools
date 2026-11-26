@@ -92,8 +92,8 @@ class DesktopLauncherTest(unittest.TestCase):
     def _copy_package(self, directory):
         shutil.copytree(ROOT / "app", Path(directory) / "app",
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-        adapter = Path(directory) / "打开PR工具.cmd"
-        shutil.copyfile(ROOT / "打开PR工具.cmd", adapter)
+        adapter = Path(directory) / "start-desktop.cmd"
+        shutil.copyfile(ROOT / "start-desktop.cmd", adapter)
         return adapter
 
     def test_native_gui_launcher_quotes_paths_and_falls_back_to_pythonw(self):

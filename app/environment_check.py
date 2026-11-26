@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import importlib.util
 import os
-import platform
 import shutil
-import subprocess
-from pathlib import Path
+import sys
 
 
 class EnvironmentCheck:
@@ -43,31 +40,46 @@ def _tk_available():
     try:
         import tkinter  # noqa: F401
         return True
-    except (ImportError, RuntimeError):
+    except (ImportError, RuntimeError, OSError):
         return False
+
+
+def tk_install_hint(platform_name):
+    if platform_name == "windows":
+        return "Enable Tcl/Tk when installing Python from python.org."
+    if platform_name == "macos":
+        return "Install Python 3 with Tk support, or use the official python.org installer."
+    if platform_name in ("linux", "wsl"):
+        return ("On Debian/Ubuntu, run: sudo apt install python3-tk\n"
+                "For a custom Python, install or use a matching Python with Tk support.")
+    return "Install Tkinter/Tcl for Python."
+
+
+def report_tk_startup_error():
+    """Report missing Tk before the GUI is available, including under pythonw."""
+    message = "Tkinter is unavailable for this Python.\n" + tk_install_hint(EnvironmentCheck.platform_name())
+    if sys.stderr is not None:
+        print(message, file=sys.stderr)
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, message, "GitHub PR Desk", 0x10)
+        except (AttributeError, OSError):
+            pass
 
 
 def run_environment_check():
     """Return fixed safe checks and install hints, never paths or credentials."""
     failures = []
     platform_name = EnvironmentCheck.platform_name()
-    python_ok = importlib.util.find_spec("tkinter") is not None
+    python_ok = True  # This check is running in Python already.
     tk_ok = _tk_available()
     git_ok = _git_available()
     ssh_ok = _ssh_available()
 
-    if not python_ok:
-        failures.append({"code": "python_missing", "message": "Python 3 is unavailable.",
-                         "hint": "Install Python 3 and add it to PATH."})
     if not tk_ok:
-        hint = "Install Tkinter/Tcl for Python."
-        if platform_name == "windows":
-            hint = "Enable Tcl/Tk when installing Python from python.org."
-        elif platform_name == "macos":
-            hint = "Install Python 3 with Tk support, or use the official python.org installer."
-        elif platform_name in ("linux", "wsl"):
-            hint = "Install python3-tk (for example: apt install python3-tk)."
-        failures.append({"code": "tk_missing", "message": "Tkinter is unavailable.", "hint": hint})
+        failures.append({"code": "tk_missing", "message": "Tkinter is unavailable.",
+                         "hint": tk_install_hint(platform_name)})
     if not git_ok:
         failures.append({"code": "git_missing", "message": "Git is unavailable.",
                          "hint": "Install Git and make it available on PATH."})

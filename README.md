@@ -6,8 +6,12 @@ and WSL repositories when the required Git and Python runtimes are available.
 
 ## Start
 
-On Windows, double-click `打开PR工具.cmd`. Python 3 with Tk support and Git must be
-installed. Select a workspace, then select a Git repository in the left pane.
+On Windows, double-click `start-desktop.cmd`. On Linux or WSL, run
+`./start-desktop.sh`; on macOS, open `start-desktop.command`. Python 3 with Tk
+support and Git must be installed. On Debian/Ubuntu, install Tk with
+`sudo apt install python3-tk`; custom Python installations may need a matching
+Tk-enabled Python instead. Select a workspace, then select a Git repository in
+the left pane.
 The application uses Git's configured credential helper; an alternative token can
 be supplied through the desktop dialog when needed.
 
