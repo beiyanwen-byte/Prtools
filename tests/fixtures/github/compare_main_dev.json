@@ -1,0 +1,60 @@
+{
+  "_note": "Synthetic comparison response modeled on GitHub's response shape; intentionally omits head_commit.",
+  "_source": "synthetic fixture",
+  "payload": {
+    "url": "https://api.github.com/repos/example-owner/example-repo/compare/main...dev",
+    "html_url": "https://github.com/example-owner/example-repo/compare/main...dev",
+    "permalink_url": "https://github.com/example-owner/example-repo/compare/main...dev",
+    "diff_url": "https://github.com/example-owner/example-repo/compare/main...dev.diff",
+    "patch_url": "https://github.com/example-owner/example-repo/compare/main...dev.patch",
+    "status": "ahead",
+    "ahead_by": 1,
+    "behind_by": 0,
+    "total_commits": 1,
+    "base_commit": {
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "merge_base_commit": {
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "commits": [
+      {
+        "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "commit": {
+          "message": "Synthetic change\n\nExample comparison details.",
+          "author": {"name": "Example Author", "email": "author@example.com"},
+          "committer": {"name": "Example Committer", "email": "committer@example.com"}
+        }
+      }
+    ],
+    "files": [
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "filename": "src/example.py",
+        "status": "added",
+        "additions": 1,
+        "deletions": 0,
+        "changes": 1,
+        "patch": "@@ -0,0 +1 @@\n+print('example')\n"
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "filename": "docs/guide.md",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "patch": "@@ -1 +1 @@\n-Old example\n+New example\n"
+      },
+      {
+        "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "filename": "tests/obsolete.py",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 1,
+        "changes": 1,
+        "patch": "@@ -1 +0,0 @@\n-# obsolete example\n"
+      }
+    ]
+  }
+}
