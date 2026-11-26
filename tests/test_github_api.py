@@ -34,6 +34,16 @@ class FakeResponse:
 class GitHubAPITest(unittest.TestCase):
     TOKEN = "synthetic-server-token"
 
+    def test_workflow_name_can_select_build_and_push_or_build_and_deploy(self):
+        api = github_api.GitHubAPI(self.TOKEN)
+        with patch.object(api, "_get", return_value=({"workflow_runs": []}, {})) as get:
+            result = api.workflow_runs("owner/repo", 1, workflow_name="build-and-push")
+        self.assertEqual([], result["runs"])
+        self.assertIn("/build-and-push.yaml/runs", get.call_args.args[0])
+        with patch.object(api, "_get", return_value=({"workflow_runs": []}, {})) as get:
+            api.workflow_runs("owner/repo", 1, workflow_name="build-and-deploy.yaml")
+        self.assertIn("/build-and-deploy.yaml/runs", get.call_args.args[0])
+
     def test_workflow_runs_are_read_only_and_validate_pagination(self):
         api = github_api.GitHubAPI(self.TOKEN)
         payload = {"workflow_runs": [

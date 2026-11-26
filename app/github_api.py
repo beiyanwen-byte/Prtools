@@ -522,10 +522,14 @@ class GitHubAPI:
         return {"repository": owner + "/" + name, "branches": branches, "page": page,
                 "next_page": next_page, "complete": next_page is None}
 
-    def workflow_runs(self, repository, page=1):
+    def workflow_runs(self, repository, page=1, *, workflow_name="build-and-deploy"):
         owner, name = _repo_parts(repository)
         self._page(page)
-        path = f"/repos/{quote(owner, safe='')}/{quote(name, safe='')}/actions/workflows/build-and-deploy.yaml/runs"
+        if not isinstance(workflow_name, str) or not workflow_name.strip():
+            raise APIError("invalid_request", "Select a valid workflow name.")
+        workflow_name = workflow_name.strip()
+        workflow_ref = (quote(workflow_name, safe="") + ".yaml") if "." not in workflow_name else quote(workflow_name, safe="")
+        path = f"/repos/{quote(owner, safe='')}/{quote(name, safe='')}/actions/workflows/{workflow_ref}/runs"
         try:
             payload, headers = self._get(f"{path}?per_page={PAGE_SIZE}&page={page}")
         except APIError as error:

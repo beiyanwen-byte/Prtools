@@ -530,11 +530,14 @@ class DesktopBackend:
         return {"available": True, "exact": exact[:100], "related": related[:100],
                 "exact_count": len(exact), "related_count": len(related)}
 
-    def list_workflow_tag_runs(self, *, reset=False):
+    def list_workflow_tag_runs(self, *, reset=False, workflow_name=None):
         api = self._api()
+        workflow_name = workflow_name if isinstance(workflow_name, str) and workflow_name.strip() else "build-and-deploy"
+        workflow_name = workflow_name.strip()[:100]
         if reset or self.workflow_state is None:
             self.workflow_state = None
-            state = {"tags": self._origin_tag_targets(), "next_page": 1,
+            state = {"workflow_name": workflow_name,
+                     "tags": self._origin_tag_targets(), "next_page": 1,
                      "pending": [], "seen": set(), "scan_limited": False}
         else:
             previous = self.workflow_state
@@ -546,7 +549,8 @@ class DesktopBackend:
                 if state["next_page"] is None:
                     break
                 try:
-                    page = api.workflow_runs(self.repository, state["next_page"])
+                    page = api.workflow_runs(self.repository, state["next_page"],
+                                             workflow_name=state["workflow_name"])
                 except github_api.APIError as error:
                     if error.code == "github_auth_failed" or not candidates:
                         self._raise_api_error(error)

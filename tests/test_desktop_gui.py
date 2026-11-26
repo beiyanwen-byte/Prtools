@@ -63,8 +63,9 @@ class DesktopGuiBranchSearchTests(unittest.TestCase):
             self.tag_load_calls += 1
             return {"branch_count": 0, "tagged_branch_count": 0, "branches": []}
 
-        def list_workflow_tag_runs(self, *, reset=False):
-            self.workflow_calls.append(reset)
+        def list_workflow_tag_runs(self, *, reset=False, workflow_name="build-and-push"):
+
+            self.workflow_calls.append((reset, workflow_name))
             return {"runs": [], "has_more": False, "scan_limited": False, "warning": ""}
 
         def source_commit_detail(self, sha):
@@ -536,6 +537,45 @@ class DesktopGuiBranchSearchTests(unittest.TestCase):
         finally:
             app.destroy()
 
+    def test_workflow_page_accepts_build_and_push_and_related_repository_name(self):
+        app = DesktopApp(self.StubBackend())
+        app.withdraw()
+        try:
+            app.repo_info = {"repository": "example-owner/example-model"}
+            app.workflow_name.set("build-and-push")
+            app._workflow_tags_loaded({"runs": [{
+                "id": 123, "tag": "v1.0.0-test-d1", "status": "completed",
+                "conclusion": "success", "jobs": [], "branches": {
+                    "available": True, "exact": ["main"], "exact_count": 1,
+                    "related": [], "related_count": 0,
+                }}], "has_more": False}, reset=True)
+            self.assertIn("build-and-push", app.workflow_result.cget("text") or "")
+            self.assertEqual("v1.0.0-test-d1", app.workflow_list.item("0", "text"))
+        finally:
+            app.destroy()
+
+    def test_workflow_page_accepts_build_and_push_or_build_and_deploy_name(self):
+        app = DesktopApp(self.StubBackend())
+        app.withdraw()
+        try:
+            app.repo_info = {"repository": "owner/repo"}
+            app.workflow_name.set("build-and-push")
+            app.load_workflow_tags(reset=True)
+            deadline = __import__("time").monotonic() + 5
+            while app.busy and __import__("time").monotonic() < deadline:
+                app.update()
+                __import__("time").sleep(.02)
+            self.assertTrue(app.workflow_loaded)
+            app.workflow_name.set("build-and-deploy.yaml")
+            app.load_workflow_tags(reset=True)
+            deadline = __import__("time").monotonic() + 5
+            while app.busy and __import__("time").monotonic() < deadline:
+                app.update()
+                __import__("time").sleep(.02)
+            self.assertTrue(app.workflow_loaded)
+        finally:
+            app.destroy()
+
     def test_workflow_page_displays_run_environments_and_safe_link(self):
         from unittest.mock import patch
         app = DesktopApp(self.StubBackend())
@@ -551,6 +591,7 @@ class DesktopGuiBranchSearchTests(unittest.TestCase):
                    ], "branches": {"available": True, "exact": ["main"], "exact_count": 1,
                                    "related": ["release-example"], "related_count": 1},
                    "url": "https://evil.invalid/"}
+            app.workflow_name.set("build-and-push")
             app._workflow_tags_loaded({"runs": [row], "has_more": True, "scan_limited": False,
                                        "warning": ""}, reset=True)
             ids = app.workflow_list.get_children()
@@ -643,6 +684,7 @@ class DesktopGuiBranchSearchTests(unittest.TestCase):
         try:
             app.workspace_path.set("synthetic-workspace")
             app.repo_info = {"repository": "owner/repo"}
+            app.workflow_name.set("build-and-push")
             self.assertEqual([], backend.workflow_calls)
             app.notebook.select(app.workflow_tab)
             app._notebook_tab_changed()
@@ -650,15 +692,15 @@ class DesktopGuiBranchSearchTests(unittest.TestCase):
             while app.busy and __import__("time").monotonic() < deadline:
                 app.update()
                 __import__("time").sleep(.02)
-            self.assertEqual([True], backend.workflow_calls)
+            self.assertEqual([(True, "build-and-push")], backend.workflow_calls)
             app._notebook_tab_changed()
-            self.assertEqual([True], backend.workflow_calls)
+            self.assertEqual([(True, "build-and-push")], backend.workflow_calls)
             app.load_workflow_tags(reset=True)
             deadline = __import__("time").monotonic() + 5
             while app.busy and __import__("time").monotonic() < deadline:
                 app.update()
                 __import__("time").sleep(.02)
-            self.assertEqual([True, True], backend.workflow_calls)
+            self.assertEqual([(True, "build-and-push"), (True, "build-and-push")], backend.workflow_calls)
         finally:
             app.destroy()
 

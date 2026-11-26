@@ -28,7 +28,8 @@ def dispatch(backend, request):
     if action == "list_branch_tags":
         return backend.list_branch_tags()
     if action == "list_workflow_tag_runs":
-        return backend.list_workflow_tag_runs(reset=request.get("reset") is True)
+        return backend.list_workflow_tag_runs(reset=request.get("reset") is True,
+                                              workflow_name=request.get("workflow_name") or "build-and-push")
     if action == "suggest_tag_name":
         return backend.suggest_tag_name(request.get("branch", ""))
     if action == "create_remote_tag":

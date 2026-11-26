@@ -22,11 +22,21 @@ class DesktopBackendTests(unittest.TestCase):
         backend.source_commit_detail.assert_called_once_with("a" * 40)
         self.assertEqual("Full message", result["message"])
 
+    def test_worker_dispatches_named_workflow_tag_list(self):
+        backend = Mock()
+        backend.list_workflow_tag_runs.return_value = {"runs": [], "has_more": False}
+        result = desktop_worker.dispatch(backend, {"action": "list_workflow_tag_runs",
+                                                   "reset": True,
+                                                   "workflow_name": "build-and-push"})
+        backend.list_workflow_tag_runs.assert_called_once_with(reset=True,
+                                                               workflow_name="build-and-push")
+        self.assertEqual([], result["runs"])
+
     def test_worker_dispatches_workflow_tag_list(self):
         backend = Mock()
         backend.list_workflow_tag_runs.return_value = {"runs": [], "has_more": False}
         result = desktop_worker.dispatch(backend, {"action": "list_workflow_tag_runs", "reset": True})
-        backend.list_workflow_tag_runs.assert_called_once_with(reset=True)
+        backend.list_workflow_tag_runs.assert_called_once_with(reset=True, workflow_name="build-and-push")
         self.assertEqual([], result["runs"])
 
     def test_worker_dispatches_tag_suggestion(self):

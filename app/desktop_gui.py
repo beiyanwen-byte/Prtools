@@ -14,6 +14,7 @@ import webbrowser
 
 from desktop_backend import DesktopBackendError
 from desktop_client import DesktopBackendClient
+from environment_check import run_environment_check
 import windows_repository_credentials as repository_credentials
 
 
@@ -54,6 +55,7 @@ class DesktopApp(tk.Tk):
         self._compare_after_id = None
         self._tag_resize_after_id = None
         self._tag_canvas_width = None
+        self._environment_check_after_id = None
 
         self.repo_path = tk.StringVar()
         self.workspace_path = tk.StringVar()
@@ -80,6 +82,7 @@ class DesktopApp(tk.Tk):
         self._build()
         self._drain_after_id = self.after(80, self._drain_events)
         self._restore_after_id = self.after(120, self.restore_last_repository_path)
+        self._environment_check_after_id = self.after(200, self._check_environment_once)
         self.protocol("WM_DELETE_WINDOW", self._close)
 
     def _build(self):
@@ -215,13 +218,16 @@ class DesktopApp(tk.Tk):
         workflow_header = ttk.Frame(workflow_tab)
         workflow_header.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         workflow_header.columnconfigure(0, weight=1)
-        ttk.Label(workflow_header, text="build-and-deploy.yaml · 只读 / Read only").grid(row=0, column=0, sticky="w")
+        self.workflow_name = tk.StringVar(value="build-and-push")
+        ttk.Label(workflow_header, text="Workflow · 只读 / Read only").grid(row=0, column=0, sticky="w")
+        self.workflow_name_entry = ttk.Entry(workflow_header, textvariable=self.workflow_name, width=28)
+        self.workflow_name_entry.grid(row=0, column=1, padx=(6, 0))
         self.workflow_refresh_button = ttk.Button(workflow_header, text="刷新 / Refresh",
                                                   command=lambda: self.load_workflow_tags(reset=True))
-        self.workflow_refresh_button.grid(row=0, column=1, padx=(6, 0))
+        self.workflow_refresh_button.grid(row=0, column=2, padx=(6, 0))
         self.workflow_more_button = ttk.Button(workflow_header, text="加载更多 / Load more",
                                                command=lambda: self.load_workflow_tags(reset=False))
-        self.workflow_more_button.grid(row=0, column=2, padx=(6, 0))
+        self.workflow_more_button.grid(row=0, column=3, padx=(6, 0))
         workflow_list_frame = ttk.Frame(workflow_tab)
         workflow_list_frame.grid(row=1, column=0, sticky="nsew")
         workflow_list_frame.rowconfigure(0, weight=1)
@@ -451,6 +457,20 @@ class DesktopApp(tk.Tk):
         self._clear_repository_state()
         self.repo_path.set(path)
         self.connect()
+
+    def _check_environment_once(self):
+        self._environment_check_after_id = None
+        result = run_environment_check()
+        if result["ok"]:
+            return
+        details = "\n".join(
+            f"- {item['message']}\n  {item['hint']}" for item in result["failures"])
+        messagebox.showwarning(
+            "启动环境检查 / Environment check",
+            "发现启动依赖问题，请按提示安装或修复：\n" + details,
+            parent=self,
+        )
+        self.status.set("启动环境检查未通过；请按提示修复后重试 / Environment check failed")
 
     def restore_last_repository_path(self):
         if self.busy or self.workspace_path.get().strip():
@@ -762,8 +782,15 @@ class DesktopApp(tk.Tk):
                 self.workflow_load_pending = True
             return
         self.workflow_load_pending = False
+        workflow_name = self.workflow_name.get().strip()
+        if not workflow_name:
+            self.workflow_result.configure(text="请输入 Workflow 名称 / Enter a workflow name")
+            return
+        if "/" in workflow_name or "\\" in workflow_name or ".." in workflow_name:
+            self.workflow_result.configure(text="Workflow 名称无效 / Invalid workflow name")
+            return
         self._run_async("读取 Workflow Tag 和部署状态… / Loading workflow tags and deployments…",
-                        lambda: self.backend.list_workflow_tag_runs(reset=reset),
+                        lambda: self.backend.list_workflow_tag_runs(reset=reset, workflow_name=workflow_name),
                         lambda result: self._workflow_tags_loaded(result, reset=reset),
                         on_error=self._workflow_load_failed)
 
@@ -853,7 +880,8 @@ class DesktopApp(tk.Tk):
             self._workflow_selected()
         elif reset:
             self._set_text(self.workflow_detail, "没有可显示的 Tag 运行记录 / No matching tag runs")
-        summary = (f"首批刷新完成：{self.workflow_refreshed_at or '—'}；已显示 {len(self.workflow_rows)} 个 Tag。"
+        summary = (f"{self.workflow_name.get().strip()} · 首批刷新完成：{self.workflow_refreshed_at or '—'}；"
+                   f"已显示 {len(self.workflow_rows)} 个 Tag。"
                    "状态不会自动更新，请点击刷新；按运行创建时间，每个 Tag 取最新一次。"
                    "仅匹配当前远端 Tag 和提交（已删除或移动的 Tag 可能不显示）；"
                    "Job 成功不代表当前环境版本。")
@@ -1606,6 +1634,7 @@ class DesktopApp(tk.Tk):
         self.tag_search.set("")
         self.tag_branch_search.set("")
         self.tag_suggestion_branches.clear()
+        self.workflow_name.set("build-and-push")
         self._tag_branch_default_active = True
         self.tag_list.delete("all")
         self.tag_result.configure(text="")
@@ -1693,6 +1722,7 @@ class DesktopApp(tk.Tk):
         self.workflow_refresh_button.configure(state="normal" if workflow_ready else "disabled")
         self.workflow_more_button.configure(
             state="normal" if workflow_ready and self.workflow_loaded and self.workflow_has_more else "disabled")
+        self.workflow_name_entry.configure(state="normal" if workflow_ready else "disabled")
         workflow_selected = self.workflow_list.selection()
         selected_row = None
         if workflow_selected:
@@ -1764,7 +1794,8 @@ class DesktopApp(tk.Tk):
             self._drain_after_id = None
 
     def destroy(self):
-        for attribute in ("_drain_after_id", "_restore_after_id", "_compare_after_id", "_tag_resize_after_id"):
+        for attribute in ("_drain_after_id", "_restore_after_id", "_compare_after_id",
+                          "_tag_resize_after_id", "_environment_check_after_id"):
             after_id = getattr(self, attribute, None)
             if after_id:
                 try:
