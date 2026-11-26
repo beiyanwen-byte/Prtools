@@ -532,8 +532,15 @@ class DesktopBackend:
 
     def list_workflow_tag_runs(self, *, reset=False, workflow_name=None):
         api = self._api()
-        workflow_name = workflow_name if isinstance(workflow_name, str) and workflow_name.strip() else "build-and-deploy"
-        workflow_name = workflow_name.strip()[:100]
+        if isinstance(workflow_name, str) and workflow_name.strip():
+            requested = workflow_name.strip()[:100]
+        elif self.repository:
+            repository_name = self.repository.rsplit("/", 1)[-1].casefold()
+            requested = ("build-and-push" if repository_name in ("tsp-common-model", "tsp-common-lib")
+                         else "build-and-deploy")
+        else:
+            requested = "build-and-deploy"
+        workflow_name = requested
         if reset or self.workflow_state is None:
             self.workflow_state = None
             state = {"workflow_name": workflow_name,

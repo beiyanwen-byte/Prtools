@@ -218,10 +218,9 @@ class DesktopApp(tk.Tk):
         workflow_header = ttk.Frame(workflow_tab)
         workflow_header.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         workflow_header.columnconfigure(0, weight=1)
-        self.workflow_name = tk.StringVar(value="build-and-push")
+        self.workflow_name = tk.StringVar(value="")
         ttk.Label(workflow_header, text="Workflow · 只读 / Read only").grid(row=0, column=0, sticky="w")
-        self.workflow_name_entry = ttk.Entry(workflow_header, textvariable=self.workflow_name, width=28)
-        self.workflow_name_entry.grid(row=0, column=1, padx=(6, 0))
+        self.workflow_name_entry = ttk.Entry(workflow_header, textvariable=self.workflow_name, width=28, state="readonly")
         self.workflow_refresh_button = ttk.Button(workflow_header, text="刷新 / Refresh",
                                                   command=lambda: self.load_workflow_tags(reset=True))
         self.workflow_refresh_button.grid(row=0, column=2, padx=(6, 0))
@@ -546,15 +545,15 @@ class DesktopApp(tk.Tk):
         if error.code not in ("credential_missing", "credential_invalid", "github_auth_failed"):
             self.status.set(error.message)
             return
-        self.status.set("Git 凭据无效或缺失，请输入 Token / Enter a GitHub token")
+        self.status.set("Git 凭据无效或缺失，请输入另一账号的 PAT（不会覆盖无关仓库凭据） / Enter this repository's PAT")
         self._enter_token()
 
     def _enter_token(self):
         if not self.repo_path.get().strip() or self.busy:
             return
         token = simpledialog.askstring(
-            "GitHub Token", "请输入此仓库使用的 GitHub Token：\n"
-            "验证成功后保存到 Windows 凭据管理器。", show="*", parent=self)
+            "GitHub PAT", "请输入此仓库使用的 GitHub PAT：\n"
+            "用户名由 PAT 验证的账号提供；PAT 填在密码位置。验证成功后按仓库保存，不覆盖另一个仓库。", show="*", parent=self)
         if token:
             self.connect(token=token.strip())
 
@@ -784,11 +783,12 @@ class DesktopApp(tk.Tk):
         self.workflow_load_pending = False
         workflow_name = self.workflow_name.get().strip()
         if not workflow_name:
-            self.workflow_result.configure(text="请输入 Workflow 名称 / Enter a workflow name")
-            return
-        if "/" in workflow_name or "\\" in workflow_name or ".." in workflow_name:
-            self.workflow_result.configure(text="Workflow 名称无效 / Invalid workflow name")
-            return
+            repository_name = (self.repo_info["repository"].rsplit("/", 1)[-1].casefold()
+                               if self.repo_info else "")
+            workflow_name = ("build-and-push"
+                             if repository_name in ("tsp-common-model", "tsp-common-lib")
+                             else "build-and-deploy")
+            self.workflow_name.set(workflow_name)
         self._run_async("读取 Workflow Tag 和部署状态… / Loading workflow tags and deployments…",
                         lambda: self.backend.list_workflow_tag_runs(reset=reset, workflow_name=workflow_name),
                         lambda result: self._workflow_tags_loaded(result, reset=reset),
@@ -1634,7 +1634,10 @@ class DesktopApp(tk.Tk):
         self.tag_search.set("")
         self.tag_branch_search.set("")
         self.tag_suggestion_branches.clear()
-        self.workflow_name.set("build-and-push")
+        repository_name = (self.repo_info["repository"].rsplit("/", 1)[-1].casefold()
+                           if self.repo_info else "")
+        self.workflow_name.set("build-and-push" if repository_name in (
+            "tsp-common-model", "tsp-common-lib") else "build-and-deploy")
         self._tag_branch_default_active = True
         self.tag_list.delete("all")
         self.tag_result.configure(text="")
@@ -1722,7 +1725,7 @@ class DesktopApp(tk.Tk):
         self.workflow_refresh_button.configure(state="normal" if workflow_ready else "disabled")
         self.workflow_more_button.configure(
             state="normal" if workflow_ready and self.workflow_loaded and self.workflow_has_more else "disabled")
-        self.workflow_name_entry.configure(state="normal" if workflow_ready else "disabled")
+        self.workflow_name_entry.configure(state="readonly" if workflow_ready else "disabled")
         workflow_selected = self.workflow_list.selection()
         selected_row = None
         if workflow_selected:

@@ -151,8 +151,9 @@ class DesktopBackendClient:
     def list_branch_tags(self):
         return self.call("list_branch_tags")
 
-    def list_workflow_tag_runs(self, *, reset=False, workflow_name="build-and-deploy"):
-        return self.call("list_workflow_tag_runs", reset=reset, workflow_name=workflow_name)
+    def list_workflow_tag_runs(self, *, reset=False, workflow_name=None):
+        return self.call("list_workflow_tag_runs", reset=reset,
+                         workflow_name=(workflow_name or "build-and-deploy"))
 
     def suggest_tag_name(self, branch):
         return self.call("suggest_tag_name", branch=branch)
